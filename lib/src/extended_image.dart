@@ -815,7 +815,7 @@ class _ExtendedImageState extends State<ExtendedImage>
       if (widget.enableLoadState) {
         switch (_loadState) {
           case LoadState.loading:
-            current = loaderWidget ?? Container(
+            current = widget.loaderWidget ?? Container(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
