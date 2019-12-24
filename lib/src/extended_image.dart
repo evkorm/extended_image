@@ -41,6 +41,7 @@ class ExtendedImage extends StatefulWidget {
       this.shape,
       this.borderRadius,
       this.clipBehavior: Clip.antiAlias,
+      this.loaderWidget,
       this.enableLoadState: false,
       this.beforePaintImage,
       this.afterPaintImage,
@@ -82,6 +83,7 @@ class ExtendedImage extends StatefulWidget {
       this.border,
       this.borderRadius,
       this.clipBehavior: Clip.antiAlias,
+      this.loaderWidget,
       this.enableLoadState: true,
       this.beforePaintImage,
       this.afterPaintImage,
@@ -160,6 +162,7 @@ class ExtendedImage extends StatefulWidget {
       this.border,
       this.borderRadius,
       this.clipBehavior: Clip.antiAlias,
+      this.loaderWidget,
       this.enableLoadState: false,
       this.beforePaintImage,
       this.afterPaintImage,
@@ -332,6 +335,7 @@ class ExtendedImage extends StatefulWidget {
       this.border,
       this.borderRadius,
       this.clipBehavior: Clip.antiAlias,
+      this.loaderWidget,
       this.enableLoadState: false,
       this.beforePaintImage,
       this.afterPaintImage,
@@ -395,6 +399,7 @@ class ExtendedImage extends StatefulWidget {
       this.border,
       this.borderRadius,
       this.clipBehavior: Clip.antiAlias,
+      this.loaderWidget,
       this.enableLoadState: false,
       this.beforePaintImage,
       this.afterPaintImage,
@@ -456,6 +461,8 @@ class ExtendedImage extends StatefulWidget {
   ///it's to used in  [ExtendedRawImage]
   ///and [ExtendedRenderImage]
   final AfterPaintImage afterPaintImage;
+
+  final Widget loaderWidget;
 
   ///whether has loading or failed state
   ///default is false
@@ -830,7 +837,7 @@ class _ExtendedImageState extends State<ExtendedImage>
       if (widget.enableLoadState) {
         switch (_loadState) {
           case LoadState.loading:
-            current = Container(
+            current = widget.loaderWidget ?? Container(
               alignment: Alignment.center,
               child: _getIndicator(context),
             );
