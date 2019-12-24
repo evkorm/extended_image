@@ -4,6 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:oktoast/oktoast.dart';
 
+import 'package:ff_annotation_route/ff_annotation_route.dart';
+
+@FFRoute(
+    name: "fluttercandies://customimage",
+    routeName: "custom image load state",
+    description: "show image with loading,failed,animation state")
 class CustomImageDemo extends StatefulWidget {
   @override
   _CustomImageDemoState createState() => _CustomImageDemoState();
@@ -65,6 +71,11 @@ class _CustomImageDemoState extends State<CustomImageDemo>
                       break;
                     case LoadState.completed:
                       _controller.forward();
+
+                      ///if you don't want override completed widget
+                      ///please return null or state.completedWidget
+                      //return null;
+                      //return state.completedWidget;
                       return FadeTransition(
                         opacity: _controller,
                         child: ExtendedRawImage(

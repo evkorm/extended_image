@@ -26,14 +26,22 @@ abstract class ExtendedImageState {
   Object get imageStreamKey;
 
   ExtendedImage get imageWidget;
+
+  Widget get completedWidget;
 }
 
 enum ExtendedImageMode {
   //just show image
-  None,
+  none,
   //support be to zoom,scroll
-  Gesture,
+  gesture,
+  //support be to crop,rotate,flip
+  editor
 }
 
 ///get type from T
 Type typeOf<T>() => T;
+
+double clampScale(double scale, double min, double max) {
+  return scale.clamp(min, max);
+}

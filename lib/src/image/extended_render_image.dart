@@ -1,5 +1,8 @@
+import 'dart:math';
+import 'package:extended_image/src/editor/extended_image_editor_utils.dart';
 import 'package:extended_image/src/gesture/extended_image_gesture_utils.dart';
 import 'package:extended_image/src/extended_image_typedef.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'dart:ui' as ui show Image;
 
@@ -30,6 +33,7 @@ class ExtendedRenderImage extends RenderBox {
     AfterPaintImage afterPaintImage,
     BeforePaintImage beforePaintImage,
     GestureDetails gestureDetails,
+    EditActionDetails editActionDetails,
   })  : assert(scale != null),
         assert(repeat != null),
         assert(alignment != null),
@@ -52,9 +56,19 @@ class ExtendedRenderImage extends RenderBox {
         _soucreRect = soucreRect,
         _beforePaintImage = beforePaintImage,
         _afterPaintImage = afterPaintImage,
-        _gestureDetails = gestureDetails {
+        _gestureDetails = gestureDetails,
+        _editActionDetails = editActionDetails {
     _updateColorFilter();
   }
+
+  EditActionDetails _editActionDetails;
+  EditActionDetails get editActionDetails => _editActionDetails;
+  set editActionDetails(EditActionDetails value) {
+    if (value == _editActionDetails) return;
+    _editActionDetails = value;
+    markNeedsPaint();
+  }
+
   GestureDetails _gestureDetails;
   GestureDetails get gestureDetails => _gestureDetails;
   set gestureDetails(GestureDetails value) {
@@ -384,7 +398,8 @@ class ExtendedRenderImage extends RenderBox {
         customSoucreRect: _soucreRect,
         beforePaintImage: beforePaintImage,
         afterPaintImage: afterPaintImage,
-        gestureDetails: gestureDetails);
+        gestureDetails: gestureDetails,
+        editActionDetails: editActionDetails);
   }
 
   @override
@@ -434,6 +449,7 @@ void paintExtendedImage({
   //you can paint anything if you want after paint image.
   AfterPaintImage afterPaintImage,
   GestureDetails gestureDetails,
+  EditActionDetails editActionDetails,
 }) {
   assert(canvas != null);
   assert(image != null);
@@ -441,8 +457,19 @@ void paintExtendedImage({
   assert(repeat != null);
   assert(flipHorizontally != null);
   if (rect.isEmpty) return;
+
   Size outputSize = rect.size;
   Size inputSize = Size(image.width.toDouble(), image.height.toDouble());
+
+  Offset topLeft = rect.topLeft;
+
+  // if (editActionDetails != null && editActionDetails.isHalfPi) {
+  //   outputSize = Size(outputSize.height, outputSize.width);
+  //   var center = rect.center;
+  //   topLeft = Rect.fromLTWH(center.dx - rect.height / 2.0,
+  //           center.dy - rect.width / 2.0, rect.height, rect.width)
+  //       .topLeft;
+  // }
 
   Offset sliceBorder;
   if (centerSlice != null) {
@@ -483,25 +510,85 @@ void paintExtendedImage({
   final double dx = halfWidthDelta +
       (flipHorizontally ? -alignment.x : alignment.x) * halfWidthDelta;
   final double dy = halfHeightDelta + alignment.y * halfHeightDelta;
-  final Offset destinationPosition = rect.topLeft.translate(dx, dy);
+  final Offset destinationPosition = topLeft.translate(dx, dy);
   Rect destinationRect = destinationPosition & destinationSize;
 
-  bool gestureClip = false;
+  bool needClip = false;
+
   if (gestureDetails != null) {
     destinationRect =
         gestureDetails.calculateFinalDestinationRect(rect, destinationRect);
 
     ///outside and need clip
-    gestureClip = outRect(rect, destinationRect);
+    needClip = outRect(rect, destinationRect);
 
     if (gestureDetails.slidePageOffset != null) {
       destinationRect = destinationRect.shift(gestureDetails.slidePageOffset);
       rect = rect.shift(gestureDetails.slidePageOffset);
     }
 
-    if (gestureClip) {
+    if (needClip) {
       canvas.save();
       canvas.clipRect(rect);
+    }
+  }
+  bool hasEditAction = false;
+  if (editActionDetails != null) {
+    if (editActionDetails.cropRectPadding != null) {
+      destinationRect = getDestinationRect(
+          inputSize: inputSize,
+          rect: editActionDetails.cropRectPadding.deflateRect(rect),
+          fit: fit,
+          flipHorizontally: false,
+          scale: scale,
+          centerSlice: centerSlice,
+          alignment: alignment);
+    }
+
+    editActionDetails.initRect(rect, destinationRect);
+
+    destinationRect = editActionDetails.getFinalDestinationRect();
+
+    ///outside and need clip
+    needClip = outRect(rect, destinationRect);
+
+    hasEditAction = editActionDetails.hasEditAction;
+
+    if (needClip || hasEditAction) {
+      canvas.save();
+      if (needClip) {
+        canvas.clipRect(rect);
+      }
+    }
+
+    if (hasEditAction) {
+      var origin =
+          editActionDetails.screenCropRect?.center ?? destinationRect.center;
+
+      final Matrix4 result = Matrix4.identity();
+
+      var editAction = editActionDetails;
+
+      result.translate(
+        origin.dx,
+        origin.dy,
+      );
+
+      if (editAction.hasRotateAngle) {
+        result.multiply(Matrix4.rotationZ(editAction.rotateRadian));
+      }
+
+      if (editAction.flipY) {
+        result.multiply(Matrix4.rotationY(pi));
+      }
+
+      if (editAction.flipX) {
+        result.multiply(Matrix4.rotationX(pi));
+      }
+
+      result.translate(-origin.dx, -origin.dy);
+      canvas.transform(result.storage);
+      destinationRect = editAction.paintRect(destinationRect);
     }
   }
 
@@ -523,10 +610,10 @@ void paintExtendedImage({
   if (centerSlice == null) {
     final Rect sourceRect = customSoucreRect ??
         alignment.inscribe(sourceSize, Offset.zero & inputSize);
-
     for (Rect tileRect
-        in _generateImageTileRects(rect, destinationRect, repeat))
+        in _generateImageTileRects(rect, destinationRect, repeat)) {
       canvas.drawImageRect(image, sourceRect, tileRect, paint);
+    }
   } else {
     for (Rect tileRect
         in _generateImageTileRects(rect, destinationRect, repeat))
@@ -535,7 +622,8 @@ void paintExtendedImage({
 
   if (needSave) canvas.restore();
 
-  if (gestureDetails != null && gestureClip) {
+
+  if (needClip || hasEditAction) {
     canvas.restore();
   }
 

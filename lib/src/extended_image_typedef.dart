@@ -3,6 +3,7 @@ import 'package:extended_image/src/gesture/extended_image_gesture_utils.dart';
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui show Image;
 
+import 'editor/extended_image_editor_utils.dart';
 import 'gesture/extended_image_slide_page.dart';
 
 ///
@@ -49,3 +50,25 @@ typedef OnSlidingPage = void Function(ExtendedImageSlidePageState state);
 
 ///whether we can move page
 typedef CanMovePage = bool Function(GestureDetails gestureDetails);
+
+///return initial destination rect
+typedef InitDestinationRect = void Function(Rect initialDestinationRect);
+
+///return merged editRect rect
+typedef MergeEditRect = Rect Function(Rect editRect);
+
+///build Gesture Image
+typedef BuildGestureImage = Widget Function(GestureDetails gestureDetails);
+
+///init GestureConfig when image is ready.
+typedef InitEditorConfigHandler = EditorConfig Function(
+    ExtendedImageState state);
+
+///get eidtor mask color base on pointerDown
+typedef EidtorMaskColorHandler = Color Function(
+    BuildContext context, bool pointerDown);
+
+///build Hero only for sliding page
+///the transfrom of sliding page must be working on Hero
+///so that Hero animation wouldn't be strange when pop page
+typedef HeroBuilderForSlidingPage = Widget Function(Widget widget);

@@ -1,3 +1,75 @@
+## [0.6.8]
+
+* Issues:
+  Fix breaking change for flutter 1.10.15 about miss load parameter.
+
+## [0.6.7]
+
+* Issues:
+  Fix issue that ExtendedImageGesturePageView didn't work well when set initial alignment.
+
+## [0.6.6]
+
+* Features:
+  Support init image with alignment when initialScale >1.0.
+* Issues:
+  Fix issue that scrollDirection didn't work when set it dynamically(ExtendedImageGesturePageView ).
+* Improve:
+  Add WaterfallFlow demo.
+
+## [0.6.5]
+
+* Features:
+  Add completedWidget for ExtendedImageState, it is include gesture or editor, so that you would't miss them
+* Improve:
+  Improve documents about Load State 
+
+## [0.6.4]
+
+* Issues:
+  Fix issue that rawImageData can't be cached for ExtendedExactAssetImageProvider/ExtendedAssetImageProvider.
+* Improve:
+  Add demo about ImageEditor with native library, it's faster. 
+
+## [0.6.3]
+
+* Issues:
+  Fix issue that forget canvas.restore after canvas.clipRect
+* Breaking Change:
+  ImageEditor：you should crop image data before flip or rotate image data now.
+* Improve:
+  Increase cropping speed
+
+## [0.6.2]
+
+* Features:
+  Add InitCropRectType(imageRect,layoutRect) for EditorConfig to define init crop rect base on initial image rect or image layout rect.
+* Breaking Change:
+  Make sure the image is all painted to crop,the fit of image must be BoxFit.contain.
+    
+## [0.6.1]
+
+* Issues:
+  Fix issue about drag slowly in ImageEditor
+
+## [0.6.0]
+
+* Issues:
+  Fix issue about strange behaviour at slide out page
+  
+## [0.5.9]
+
+* Add HeroBuilderForSlidingPage call back to fix strange hero animation
+  
+## [0.5.8]
+
+* Features:
+  Support to crop,rotate,flip image
+  
+## [0.5.6]
+
+* Add key for ExtendedImageSlidePage
+
 ## [0.5.5]
 
 * Features:

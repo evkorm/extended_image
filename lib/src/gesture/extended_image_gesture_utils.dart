@@ -1,5 +1,4 @@
 import 'dart:math';
-
 import 'package:extended_image/src/extended_image_typedef.dart';
 import 'package:flutter/material.dart';
 
@@ -35,6 +34,19 @@ class Boundary {
   String toString() {
     return "left:$left,right:$right,top:$top,bottom:$bottom";
   }
+
+  @override
+  int get hashCode => hashValues(left, right, top, bottom);
+
+  @override
+  bool operator ==(dynamic other) {
+    if (other.runtimeType != runtimeType) return false;
+    final Boundary typedOther = other;
+    return left == typedOther.left &&
+        right == typedOther.right &&
+        top == typedOther.top &&
+        bottom == typedOther.bottom;
+  }
 }
 
 //enum InPageView {
@@ -68,18 +80,16 @@ class GestureDetails {
   ///total scale of image
   final double totalScale;
 
+  final ActionType actionType;
+
   bool _computeVerticalBoundary = false;
   bool get computeVerticalBoundary => _computeVerticalBoundary;
 
-  ///whether
   bool _computeHorizontalBoundary = false;
   bool get computeHorizontalBoundary => _computeHorizontalBoundary;
 
   Boundary _boundary = Boundary();
   Boundary get boundary => _boundary;
-
-  GestureState _gestureState = GestureState.pan;
-  GestureState get gestureState => _gestureState;
 
   //true: user zoom/pan
   //false: animation
@@ -90,7 +100,40 @@ class GestureDetails {
 
   Rect layoutRect;
   Rect destinationRect;
-  Rect preDestinationRect;
+
+  ///from
+  Rect rawDestinationRect;
+
+  InitialAlignment initialAlignment;
+
+  @override
+  int get hashCode => hashValues(
+      offset,
+      totalScale,
+      computeVerticalBoundary,
+      computeHorizontalBoundary,
+      boundary,
+      actionType,
+      userOffset,
+      layoutRect,
+      destinationRect,
+      _center);
+
+  @override
+  bool operator ==(dynamic other) {
+    if (other.runtimeType != runtimeType) return false;
+    final GestureDetails typedOther = other;
+    return offset == typedOther.offset &&
+        totalScale == typedOther.totalScale &&
+        computeVerticalBoundary == typedOther.computeVerticalBoundary &&
+        computeHorizontalBoundary == typedOther.computeHorizontalBoundary &&
+        boundary == typedOther.boundary &&
+        actionType == typedOther.actionType &&
+        userOffset == typedOther.userOffset &&
+        layoutRect == typedOther.layoutRect &&
+        destinationRect == typedOther.destinationRect &&
+        _center == typedOther._center;
+  }
 
   ///slide page offset
   Offset slidePageOffset;
@@ -99,7 +142,7 @@ class GestureDetails {
       {this.offset,
       this.totalScale,
       GestureDetails gestureDetails,
-      bool zooming: false,
+      this.actionType: ActionType.pan,
       this.userOffset: true}) {
     if (gestureDetails != null) {
       _computeVerticalBoundary = gestureDetails._computeVerticalBoundary;
@@ -107,7 +150,6 @@ class GestureDetails {
       _center = gestureDetails._center;
       layoutRect = gestureDetails.layoutRect;
       destinationRect = gestureDetails.destinationRect;
-      preDestinationRect = gestureDetails.preDestinationRect;
 
       ///zoom end will call twice
       /// zoom end
@@ -115,15 +157,13 @@ class GestureDetails {
       /// zoom update
       /// zoom end
     }
-
-    _gestureState = zooming ? GestureState.zoom : GestureState.pan;
   }
 
   Offset _getCenter(Rect destinationRect) {
     if (!userOffset && _center != null) {
       return _center;
     }
-
+    //var offset = editAction.paintOffset(this.offset);
     if (totalScale > 1.0) {
       if (_computeHorizontalBoundary && _computeVerticalBoundary) {
         return destinationRect.center * totalScale + offset;
@@ -170,34 +210,69 @@ class GestureDetails {
   Rect _getDestinationRect(Rect destinationRect, Offset center) {
     final double width = destinationRect.width * totalScale;
     final double height = destinationRect.height * totalScale;
-
     return Rect.fromLTWH(
         center.dx - width / 2.0, center.dy - height / 2.0, width, height);
   }
 
   Rect calculateFinalDestinationRect(Rect layoutRect, Rect destinationRect) {
-//    Rect rect1 = isSliding ? this.layoutRect : layoutRect;
-//    Rect rect2 = isSliding ? this.destinationRect : destinationRect;
+    rawDestinationRect = destinationRect;
 
     var temp = offset;
     _innerCalculateFinalDestinationRect(layoutRect, destinationRect);
     offset = temp;
     Rect result =
         _innerCalculateFinalDestinationRect(layoutRect, destinationRect);
-    preDestinationRect = result;
+
+    ///first call,initial image rect with alignment
+    if (totalScale > 1.0 &&
+        this.destinationRect == null &&
+        initialAlignment != null) {
+      offset = _getFixedOffset(destinationRect,
+          result.center + _getCenterDif(result, layoutRect, initialAlignment));
+      result = _innerCalculateFinalDestinationRect(layoutRect, destinationRect);
+      initialAlignment = null;
+    }
+    this.destinationRect = result;
+    this.layoutRect = layoutRect;
     return result;
+  }
+
+  Offset _getCenterDif(Rect result, Rect layout, InitialAlignment alignment) {
+    switch (alignment) {
+      case InitialAlignment.topLeft:
+        return layout.topLeft - result.topLeft;
+      case InitialAlignment.topCenter:
+        return layout.topCenter - result.topCenter;
+      case InitialAlignment.topRight:
+        return layout.topRight - result.topRight;
+      case InitialAlignment.centerLeft:
+        return layout.centerLeft - result.centerLeft;
+      case InitialAlignment.center:
+        return layout.center - result.center;
+      case InitialAlignment.centerRight:
+        return layout.centerRight - result.centerRight;
+      case InitialAlignment.bottomLeft:
+        return layout.bottomLeft - result.bottomLeft;
+      case InitialAlignment.bottomCenter:
+        return layout.bottomCenter - result.bottomCenter;
+      case InitialAlignment.bottomRight:
+        return layout.bottomRight - result.bottomRight;
+      default:
+        return Offset.zero;
+    }
   }
 
   Rect _innerCalculateFinalDestinationRect(
       Rect layoutRect, Rect destinationRect) {
-    this.layoutRect ??= layoutRect;
-    this.destinationRect ??= destinationRect;
+    _boundary = Boundary();
     Offset center = _getCenter(destinationRect);
     Rect result = _getDestinationRect(destinationRect, center);
+
     if (_computeHorizontalBoundary) {
       //move right
       if (result.left >= layoutRect.left) {
-        result = Rect.fromLTWH(0.0, result.top, result.width, result.height);
+        result = Rect.fromLTWH(
+            layoutRect.left, result.top, result.width, result.height);
         _boundary.left = true;
       }
 
@@ -234,12 +309,10 @@ class GestureDetails {
     ///fix offset
     ///fix offset when it's not slide page
     //if (!isSliding)
-    {
-      offset = _getFixedOffset(destinationRect, result.center);
-      _center = result.center;
-    }
 
-    //offset = Offset(roundAfter(offset.dx, 4), roundAfter(offset.dy, 4));
+    offset = _getFixedOffset(destinationRect, result.center);
+    _center = result.center;
+
     return result;
   }
 
@@ -256,16 +329,37 @@ class GestureDetails {
 
     return canMoveHorizontal || canMoveVertical || totalScale <= 1.0;
   }
+}
 
-  @override
-  bool operator ==(dynamic other) {
-    if (other.runtimeType != runtimeType) return false;
-    final GestureDetails typedOther = other;
-    return totalScale == typedOther.totalScale && offset == typedOther.offset;
-  }
+/// init image rect with alignment when initialScale > 1.0
+/// see https://github.com/fluttercandies/extended_image/issues/66
+enum InitialAlignment {
+  /// The top left corner.
+  topLeft,
 
-  @override
-  int get hashCode => hashValues(totalScale, offset);
+  /// The center point along the top edge.
+  topCenter,
+
+  /// The top right corner.
+  topRight,
+
+  /// The center point along the left edge.
+  centerLeft,
+
+  /// The center point, both horizontally and vertically.
+  center,
+
+  /// The center point along the right edge.
+  centerRight,
+
+  /// The bottom left corner.
+  bottomLeft,
+
+  /// The center point along the bottom edge.
+  bottomCenter,
+
+  /// The bottom right corner.
+  bottomRight,
 }
 
 class GestureConfig {
@@ -293,19 +387,25 @@ class GestureConfig {
   ///final Offset direction = details.velocity.pixelsPerSecond / magnitude * _gestureConfig.inertialSpeed;
   final double inertialSpeed;
 
-  //initial scale of image
+  ///initial scale of image
   final double initialScale;
-  GestureConfig(
-      {double minScale,
-      double maxScale,
-      double speed,
-      bool cacheGesture,
-      double inertialSpeed,
-      double initialScale,
-      bool inPageView,
-      double animationMinScale,
-      double animationMaxScale})
-      : minScale = minScale ??= 0.8,
+
+  /// init image rect with alignment when initialScale > 1.0
+  /// see https://github.com/fluttercandies/extended_image/issues/66
+  final InitialAlignment initialAlignment;
+
+  GestureConfig({
+    double minScale,
+    double maxScale,
+    double speed,
+    bool cacheGesture,
+    double inertialSpeed,
+    double initialScale,
+    bool inPageView,
+    double animationMinScale,
+    double animationMaxScale,
+    this.initialAlignment = InitialAlignment.center,
+  })  : minScale = minScale ??= 0.8,
         maxScale = maxScale ??= 5.0,
         speed = speed ??= 1.0,
         cacheGesture = cacheGesture ?? false,
@@ -328,12 +428,23 @@ double roundAfter(double number, int position) {
   return (number * shift).roundToDouble() / shift;
 }
 
-enum GestureState {
+// enum GestureState {
+//   ///zoom in/ zoom out
+//   zoom,
+
+//   /// horizontal and vertical move
+//   pan,
+// }
+
+enum ActionType {
   ///zoom in/ zoom out
   zoom,
 
   /// horizontal and vertical move
   pan,
+
+  ///filp,rotate
+  edit,
 }
 
 const double minMagnitude = 400.0;
